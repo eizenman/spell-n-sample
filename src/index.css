@@ -1,0 +1,91 @@
+@import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 8%;
+    --foreground: 56 100% 60%;
+    --card: 0 0% 10%;
+    --card-foreground: 56 100% 85%;
+    --popover: 0 0% 10%;
+    --popover-foreground: 56 100% 85%;
+    --primary: 35 100% 54%;
+    --primary-foreground: 0 0% 10%;
+    --secondary: 207 55% 50%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 0 0% 15%;
+    --muted-foreground: 0 0% 55%;
+    --accent: 56 100% 50%;
+    --accent-foreground: 0 0% 10%;
+    --destructive: 6 80% 50%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 0 0% 18%;
+    --input: 0 0% 18%;
+    --ring: 35 100% 54%;
+    --chart-1: 35 100% 54%;
+    --chart-2: 207 55% 50%;
+    --chart-3: 56 100% 50%;
+    --chart-4: 6 80% 50%;
+    --chart-5: 0 0% 50%;
+    --radius: 0.5rem;
+    --font-heading: 'Fredoka', ui-sans-serif, system-ui, sans-serif;
+    --font-body: 'Nunito', ui-sans-serif, system-ui, sans-serif;
+    --font-display: 'Fredoka', ui-sans-serif, system-ui, sans-serif;
+    --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    --sidebar-background: 0 0% 8%;
+    --sidebar-foreground: 56 100% 85%;
+    --sidebar-primary: 35 100% 54%;
+    --sidebar-primary-foreground: 0 0% 10%;
+    --sidebar-accent: 0 0% 15%;
+    --sidebar-accent-foreground: 56 100% 85%;
+    --sidebar-border: 0 0% 18%;
+    --sidebar-ring: 35 100% 54%;
+  }
+
+  .dark {
+    --background: 0 0% 8%;
+    --foreground: 56 100% 60%;
+    --card: 0 0% 10%;
+    --card-foreground: 56 100% 85%;
+    --popover: 0 0% 10%;
+    --popover-foreground: 56 100% 85%;
+    --primary: 35 100% 54%;
+    --primary-foreground: 0 0% 10%;
+    --secondary: 207 55% 50%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 0 0% 15%;
+    --muted-foreground: 0 0% 55%;
+    --accent: 56 100% 50%;
+    --accent-foreground: 0 0% 10%;
+    --destructive: 6 80% 50%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 0 0% 18%;
+    --input: 0 0% 18%;
+    --ring: 35 100% 54%;
+    --chart-1: 35 100% 54%;
+    --chart-2: 207 55% 50%;
+    --chart-3: 56 100% 50%;
+    --chart-4: 6 80% 50%;
+    --chart-5: 0 0% 50%;
+    --sidebar-background: 0 0% 8%;
+    --sidebar-foreground: 56 100% 85%;
+    --sidebar-primary: 35 100% 54%;
+    --sidebar-primary-foreground: 0 0% 10%;
+    --sidebar-accent: 0 0% 15%;
+    --sidebar-accent-foreground: 56 100% 85%;
+    --sidebar-border: 0 0% 18%;
+    --sidebar-ring: 35 100% 54%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  body {
+    @apply bg-background text-foreground font-body;
+  }
+}
