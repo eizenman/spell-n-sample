@@ -85,7 +85,7 @@ export const uploadSample = async (client, audioBlob, name) => {
     displayName: name,
     kind: 'one-shot',
     visibility: 'unlisted',
-    tags: ['vocalpads', 'tts'],
+    tags: ['spell-n-sample', 'tts'],
   });
   if (upload instanceof Error) {
     console.debug('[VoxMachina] uploadSample — upload error:', upload);

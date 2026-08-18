@@ -261,7 +261,7 @@ export default function VocalPads() {
             />
           </div>
           <h1 className="font-display text-2xl md:text-3xl font-bold text-destructive-foreground leading-none tracking-tight">
-            Vocal<span className="text-accent">Pads</span>
+            spell<span className="text-accent">-n-</span>sample
           </h1>
         </div>
 
@@ -311,10 +311,10 @@ export default function VocalPads() {
           </p>
         )}
 
-        {/* Yellow badge */}
+        {/* Bottom yellow badge */}
         <div className="bg-accent rounded-xl mt-5 px-6 py-2.5 flex items-center justify-center">
           <span className="font-display font-bold text-accent-foreground text-sm md:text-base tracking-[0.2em] uppercase">
-            Vocal &amp; Pads
+            Try adding emojis before or after your word 😱
           </span>
         </div>
       </div>
