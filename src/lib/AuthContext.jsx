@@ -1,16 +1,27 @@
 import { createContext, useState, useEffect, useContext } from "react";
 import { audiotool } from "@/api/audiotoolClient";
 
-const AuthContext = createContext();
+export const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
+  // Token state – persisted in localStorage
   const [token, setToken] = useState(() =>
     localStorage.getItem("audiotool_access_token")
   );
+
+  // Authentication status derived from token presence
   const [isAuthenticated, setIsAuthenticated] = useState(!!token);
+
+  // Loading flag for async auth checks
   const [isLoadingAuth, setIsLoadingAuth] = useState(false);
+
+  // Any error that occurs during authentication
   const [authError, setAuthError] = useState(null);
 
+  // Selected Machiniste – the ID of the machiniste chosen by the user
+  const [machiniste, setMachiniste] = useState(null);
+
+  // Update authentication state when the token changes
   useEffect(() => {
     setIsAuthenticated(!!token);
   }, [token]);
@@ -26,20 +37,19 @@ export const AuthProvider = ({ children }) => {
     window.location.href = "/login";
   };
 
-  return (
-    <AuthContext.Provider
-      value={{
-        token,
-        isAuthenticated,
-        isLoadingAuth,
-        authError,
-        logout,
-        navigateToLogin
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
-  );
+  // Context value exposed to the rest of the app
+  const contextValue = {
+    token,
+    isAuthenticated,
+    isLoadingAuth,
+    authError,
+    logout,
+    navigateToLogin,
+    machiniste,      // expose selected Machiniste ID
+    setMachiniste   // function to update the selected Machiniste
+  };
+
+  return <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>;
 };
 
 export const useAuth = () => {

@@ -9,15 +9,16 @@ import {
   findMachinistes,
   uploadSample,
   setChannelSample,
-  setChannelSampleRange,
+  setChannelSampleRange
 } from '@/lib/audiotool-nexus';
 import { translateEmojisToTags } from '@/lib/emoji-tags';
+import { useAuth } from '@/lib/AuthContext';
 
 const STORAGE_KEYS = {
   apiKey: 'vp_elevenlabs_key',
   language: 'vp_language',
   project: 'vp_project_name',
-  format: 'vp_output_format',
+  format: 'vp_output_format'
 };
 
 const EMPTY_PAD = () => ({ text: '', status: 'idle', audioUrl: null, error: null });
@@ -56,6 +57,9 @@ export default function VocalPads() {
   const authRef = useRef(null);
   const clientRef = useRef(null);
   const docRef = useRef(null);
+
+  // Auth context for guard
+  const { machiniste: contextMachiniste, setMachiniste } = useAuth();
 
   // Persist settings
   useEffect(() => {
@@ -174,6 +178,8 @@ export default function VocalPads() {
       const machines = findMachinistes(doc);
       setMachinistes(machines);
       if (machines.length > 0) setSelectedMachinisteId(machines[0].id);
+      // Update context with selected Machiniste
+      setMachiniste(machines.length > 0 ? machines[0].id : null);
       setConnectionStatus('connected');
       console.debug('[VoxMachina] project connected:', projectName, 'machinistes:', machines.length, 'selected:', machines[0]?.id);
     } catch (err) {
@@ -206,7 +212,7 @@ export default function VocalPads() {
           text: translatedText,
           voiceId: selectedVoiceId,
           language: selectedLanguage,
-          outputFormat,
+          outputFormat
         });
         console.debug('[VoxMachina] TTS done — blob:', audioBlob.size, 'bytes, type:', audioBlob.type);
 
@@ -244,6 +250,9 @@ export default function VocalPads() {
     [selectedMachinisteId]
   );
 
+  // Determine if PadGrid should be disabled
+  const gridDisabled = !authRef.current || authRef.current.status !== 'authenticated' || !contextMachiniste;
+
   return (
     <div className="min-h-screen bg-background flex items-start justify-center p-4 md:p-8">
       {/* Red chassis */}
@@ -256,7 +265,7 @@ export default function VocalPads() {
               style={{
                 backgroundImage:
                   'radial-gradient(circle, rgba(255,255,255,0.06) 1px, transparent 1.5px)',
-                backgroundSize: '5px 5px',
+                backgroundSize: '5px 5px'
               }}
             />
           </div>
@@ -301,6 +310,7 @@ export default function VocalPads() {
             onGenerate={handleGenerate}
             showLocators={connectionStatus === 'connected' && !!selectedMachinisteId}
             onRangeChange={handleRangeChange}
+            disabled={gridDisabled} // new prop to disable grid
           />
         </div>
 
