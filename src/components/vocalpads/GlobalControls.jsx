@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useAuth } from '@/lib/AuthContext';   // <-- new import
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -46,6 +47,8 @@ export default function GlobalControls({
 }) {
   const [showKeyDialog, setShowKeyDialog] = useState(false);
   const [keyDraft, setKeyDraft] = useState('');
+  const [showLogoutDialog, setShowLogoutDialog] = useState(false); // new state
+  const { logout } = useAuth();          // <-- add this line to access the logout function
   const isAuthenticated = authStatus === 'authenticated';
   const isChecking = authStatus === 'checking';
   const isOpen = connectionStatus === 'connected';
@@ -76,7 +79,14 @@ export default function GlobalControls({
           {isAuthenticated ? (
             <div className="flex items-center gap-2 h-9">
               <CheckCircle2 className="h-3.5 w-3.5 text-green-400 shrink-0" />
-              <span className="text-xs text-card-foreground">Connected</span>
+              {/* Make the label clickable to open logout dialog */}
+              <button
+                type="button"
+                onClick={() => setShowLogoutDialog(true)}
+                className="flex items-center gap-1.5 h-9 px-0 py-0 text-xs text-card-foreground focus:outline-none"
+              >
+                Connected
+              </button>
             </div>
           ) : isChecking ? (
             <div className="flex items-center gap-2 h-9">
@@ -203,6 +213,36 @@ export default function GlobalControls({
           </div>
         </div>
       </div>
+
+      {/* Logout confirmation dialog */}
+      <Dialog open={showLogoutDialog} onOpenChange={setShowLogoutDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirm logout</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Are you sure you want to disconnect from Audiotool?
+          </p>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowLogoutDialog(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => {
+                logout(); // clear token & update context
+                setShowLogoutDialog(false);
+              }}
+            >
+              Logout
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={showKeyDialog} onOpenChange={setShowKeyDialog}>
         <DialogContent>

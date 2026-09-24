@@ -30,7 +30,7 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem("audiotool_access_token");
     setToken(null);
     setIsAuthenticated(false);
-    window.location.href = "/login";
+    // No redirect – UI will show the “Connect with Audiotool” button
   };
 
   const navigateToLogin = () => {
