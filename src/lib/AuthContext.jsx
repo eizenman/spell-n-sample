@@ -1,16 +1,13 @@
 import { createContext, useState, useEffect, useContext } from "react";
-import { audiotool } from "@/api/audiotoolClient";
 
 export const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
-  // Token state – persisted in localStorage
-  const [token, setToken] = useState(() =>
-    localStorage.getItem("audiotool_access_token")
-  );
+  // Audiotool client instance (returned from audiotool() call)
+  const [audiotoolInstance, setAudiotoolInstance] = useState(null);
 
-  // Authentication status derived from token presence
-  const [isAuthenticated, setIsAuthenticated] = useState(!!token);
+  // Authentication status derived from the presence of a client instance
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   // Loading flag for async auth checks
   const [isLoadingAuth, setIsLoadingAuth] = useState(false);
@@ -21,16 +18,23 @@ export const AuthProvider = ({ children }) => {
   // Selected Machiniste – the ID of the machiniste chosen by the user
   const [machiniste, setMachiniste] = useState(null);
 
-  // Update authentication state when the token changes
+  // Update authentication state when the client instance changes
   useEffect(() => {
-    setIsAuthenticated(!!token);
-  }, [token]);
+    setIsAuthenticated(!!audiotoolInstance);
+  }, [audiotoolInstance]);
 
   const logout = () => {
-    localStorage.removeItem("audiotool_access_token");
-    setToken(null);
-    setIsAuthenticated(false);
-    // No redirect – UI will show the “Connect with Audiotool” button
+    // If we have a logged‑in Audiotool client instance, call its logout method first.
+    if (audiotoolInstance && typeof audiotoolInstance.logout === "function") {
+      try {
+        audiotoolInstance.logout();
+      } catch (_) {
+        /* ignore errors – we still want to clear local state */
+      }
+    }
+
+    // Clear context state
+    setAudiotoolInstance(null);
   };
 
   const navigateToLogin = () => {
@@ -39,14 +43,15 @@ export const AuthProvider = ({ children }) => {
 
   // Context value exposed to the rest of the app
   const contextValue = {
-    token,
     isAuthenticated,
     isLoadingAuth,
     authError,
     logout,
     navigateToLogin,
     machiniste,      // expose selected Machiniste ID
-    setMachiniste   // function to update the selected Machiniste
+    setMachiniste,   // function to update the selected Machiniste
+    audiotoolInstance, // expose the Audiotool client instance
+    setAudiotoolInstance // function to store the instance
   };
 
   return <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>;

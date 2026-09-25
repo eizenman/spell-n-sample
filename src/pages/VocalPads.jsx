@@ -59,7 +59,27 @@ export default function VocalPads() {
   const docRef = useRef(null);
 
   // Auth context for guard
-  const { machiniste: contextMachiniste, setMachiniste } = useAuth();
+  const { machiniste: contextMachiniste, setMachiniste, setAudiotoolInstance } = useAuth();
+
+  // New: listen to authentication changes so we can clean up on logout
+  const { isAuthenticated } = useAuth();
+  useEffect(() => {
+    if (!isAuthenticated) {
+      // Reset internal refs
+      clientRef.current = null;
+      docRef.current?.stop();
+      docRef.current = null;
+
+      // Reset component state
+      setAuthStatus('unauthenticated');
+      setConnectionStatus('disconnected');
+      setMachinistes([]);
+      setSelectedMachinisteId(null);
+      setPads(Array(9).fill(null).map(EMPTY_PAD));
+      setLoadingProjects(false);
+      setAuthError(null);
+    }
+  }, [isAuthenticated]);
 
   // Persist settings
   useEffect(() => {
@@ -82,6 +102,8 @@ export default function VocalPads() {
         authRef.current = result;
         if (result.status === 'authenticated') {
           clientRef.current = result;
+          // Store the audiotool instance in AuthContext for logout handling
+          setAudiotoolInstance(result);
           setUserName(result.userName);
           setAuthStatus('authenticated');
           setLoadingProjects(true);
@@ -111,11 +133,12 @@ export default function VocalPads() {
         setAuthStatus('unauthenticated');
         setAuthError(err.message || 'Audiotool init failed');
       });
+    // Cleanup: stop the open project document when the component unmounts or re‑runs
     return () => {
       cancelled = true;
       if (docRef.current) docRef.current.stop();
     };
-  }, []);
+  }, [setAudiotoolInstance]);
 
   // Auto-open previously selected project once projects are loaded
   useEffect(() => {
@@ -187,7 +210,7 @@ export default function VocalPads() {
       setConnectionStatus('error');
       setConnectionError(err.message || 'Failed to open project');
     }
-  }, []);
+  }, [setMachiniste]);
 
   const updatePad = useCallback((index, updates) => {
     setPads((prev) => prev.map((p, i) => (i === index ? { ...p, ...updates } : p)));
