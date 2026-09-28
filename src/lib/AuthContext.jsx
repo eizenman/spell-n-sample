@@ -1,13 +1,18 @@
 import { createContext, useState, useEffect, useContext } from "react";
+import { initAudiotool } from "@/lib/audiotool-nexus";
 
 export const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
-  // Audiotool client instance (returned from audiotool() call)
+  // Audiotool client instance (returned from audiotool() call) – only set when authenticated
   const [audiotoolInstance, setAudiotoolInstance] = useState(null);
+  const [userName, setUserName] = useState(null);
+
+  // Raw result of initAudiotool – always available so that login can be called
+  const [authResult, setAuthResult] = useState(null);
 
   // Authentication status derived from the presence of a client instance
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const isAuthenticated = !!audiotoolInstance;
 
   // Loading flag for async auth checks
   const [isLoadingAuth, setIsLoadingAuth] = useState(false);
@@ -18,10 +23,39 @@ export const AuthProvider = ({ children }) => {
   // Selected Machiniste – the ID of the machiniste chosen by the user
   const [machiniste, setMachiniste] = useState(null);
 
-  // Update authentication state when the client instance changes
+  /* ----------  OAuth flow (init + login)  ---------- */
   useEffect(() => {
-    setIsAuthenticated(!!audiotoolInstance);
-  }, [audiotoolInstance]);
+    let cancelled = false;
+    setIsLoadingAuth(true);
+    initAudiotool()
+      .then((result) => {
+        if (cancelled) return;
+        // Store the raw result for login/logout usage
+        setAuthResult(result);
+
+        if (result.status === "authenticated") {
+          setAudiotoolInstance(result);   // the client itself
+          setUserName(result.userName || result.user?.email || null);
+          setAuthError(null);
+        } else {
+          setAudiotoolInstance(null);
+          setUserName(null);
+          setAuthError(result.error ? result.error.message : "Not authenticated");
+        }
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setAudiotoolInstance(null);
+        setUserName(null);
+        setAuthResult(null);
+        setAuthError(err.message || "Audiotool init failed");
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoadingAuth(false);
+      });
+
+    return () => { cancelled = true; };
+  }, []);
 
   const logout = () => {
     // If we have a logged‑in Audiotool client instance, call its logout method first.
@@ -35,6 +69,15 @@ export const AuthProvider = ({ children }) => {
 
     // Clear context state
     setAudiotoolInstance(null);
+    setUserName(null);
+  };
+
+  const login = () => {
+    if (authResult && typeof authResult.login === "function") {
+      try {
+        authResult.login();
+      } catch (_) {}
+    }
   };
 
   const navigateToLogin = () => {
@@ -47,11 +90,14 @@ export const AuthProvider = ({ children }) => {
     isLoadingAuth,
     authError,
     logout,
+    login,
     navigateToLogin,
     machiniste,      // expose selected Machiniste ID
     setMachiniste,   // function to update the selected Machiniste
-    audiotoolInstance, // expose the Audiotool client instance
-    setAudiotoolInstance // function to store the instance
+    audiotoolInstance, // expose the Audiotool client instance (authenticated only)
+    setAudiotoolInstance, // function to store the instance (used by VocalPads)
+    userName,
+    authResult      // raw init result for login/logout usage
   };
 
   return <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>;

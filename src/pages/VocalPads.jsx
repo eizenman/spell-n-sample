@@ -3,7 +3,6 @@ import GlobalControls from '@/components/vocalpads/GlobalControls';
 import PadGrid from '@/components/vocalpads/PadGrid';
 import { fetchVoices, generateSpeech, DEFAULT_API_KEY } from '@/lib/elevenlabs';
 import {
-  initAudiotool,
   listProjects,
   openProject,
   findMachinistes,
@@ -37,10 +36,7 @@ export default function VocalPads() {
     () => localStorage.getItem(STORAGE_KEYS.project) || ''
   );
 
-  // Audiotool auth state
-  const [authStatus, setAuthStatus] = useState('checking');
-  const [authError, setAuthError] = useState(null);
-  const [userName, setUserName] = useState(null);
+  // Projects list state
   const [projects, setProjects] = useState([]);
   const [loadingProjects, setLoadingProjects] = useState(false);
 
@@ -59,29 +55,53 @@ export default function VocalPads() {
   const docRef = useRef(null);
 
   // Auth context for guard
-  const { machiniste: contextMachiniste, setMachiniste, setAudiotoolInstance } = useAuth();
+  const {
+    audiotoolInstance,
+    isAuthenticated,
+    userName,
+    logout,
+    login,
+    setAudiotoolInstance,
+    setMachiniste,
+    authError,
+    authResult
+  } = useAuth();
 
-  // New: listen to authentication changes so we can clean up on logout
-  const { isAuthenticated } = useAuth();
+  /* ----------  Keep local refs in sync with context  ---------- */
+  useEffect(() => {
+    // authRef always holds the raw init result so that login can be called
+    authRef.current = authResult;
+    // clientRef only holds the authenticated instance
+    clientRef.current = audiotoolInstance;
+  }, [authResult, audiotoolInstance]);
+
+  /* ----------  Load projects when authenticated  ---------- */
+  useEffect(() => {
+    if (isAuthenticated && audiotoolInstance) {
+      setLoadingProjects(true);
+      listProjects(audiotoolInstance)
+        .then(setProjects)
+        .catch((err) => console.error(err))
+        .finally(() => setLoadingProjects(false));
+    }
+  }, [isAuthenticated, audiotoolInstance]);
+
+  /* ----------  Reset component state on logout  ---------- */
   useEffect(() => {
     if (!isAuthenticated) {
-      // Reset internal refs
       clientRef.current = null;
       docRef.current?.stop();
       docRef.current = null;
 
-      // Reset component state
-      setAuthStatus('unauthenticated');
       setConnectionStatus('disconnected');
       setMachinistes([]);
       setSelectedMachinisteId(null);
       setPads(Array(9).fill(null).map(EMPTY_PAD));
-      setLoadingProjects(false);
-      setAuthError(null);
+      setConnectionError(null);
     }
   }, [isAuthenticated]);
 
-  // Persist settings
+  /* Persist settings */
   useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.apiKey, elevenLabsApiKey);
   }, [elevenLabsApiKey]);
@@ -92,67 +112,18 @@ export default function VocalPads() {
     localStorage.setItem(STORAGE_KEYS.format, outputFormat);
   }, [outputFormat]);
 
-  // Initialize Audiotool OAuth on mount
-  useEffect(() => {
-    let cancelled = false;
-    initAudiotool()
-      .then((result) => {
-        if (cancelled) return;
-        console.debug('[VoxMachina] auth result:', result.status);
-        authRef.current = result;
-        if (result.status === 'authenticated') {
-          clientRef.current = result;
-          // Store the audiotool instance in AuthContext for logout handling
-          setAudiotoolInstance(result);
-          setUserName(result.userName);
-          setAuthStatus('authenticated');
-          setLoadingProjects(true);
-          listProjects(result)
-            .then((projs) => {
-              if (cancelled) return;
-              console.debug('[VoxMachina] projects loaded:', projs.length);
-              setProjects(projs);
-            })
-            .catch((err) => {
-              if (cancelled) return;
-              console.debug('[VoxMachina] listProjects error:', err);
-              setAuthError(err.message || 'Failed to load projects');
-            })
-            .finally(() => {
-              if (!cancelled) setLoadingProjects(false);
-            });
-        } else {
-          setAuthStatus('unauthenticated');
-          if (result.error) setAuthError(result.error.message);
-          console.debug('[VoxMachina] not authenticated:', result.error?.message);
-        }
-      })
-      .catch((err) => {
-        if (cancelled) return;
-        console.debug('[VoxMachina] initAudiotool error:', err);
-        setAuthStatus('unauthenticated');
-        setAuthError(err.message || 'Audiotool init failed');
-      });
-    // Cleanup: stop the open project document when the component unmounts or re‑runs
-    return () => {
-      cancelled = true;
-      if (docRef.current) docRef.current.stop();
-    };
-  }, [setAudiotoolInstance]);
-
-  // Auto-open previously selected project once projects are loaded
+  /* Auto-open previously selected project once projects are loaded */
   useEffect(() => {
     if (
-      authStatus === 'authenticated' &&
-      projects.length > 0 &&
-      selectedProjectName &&
-      connectionStatus === 'disconnected'
+      isAuthenticated &&
+      connectionStatus === 'disconnected' &&
+      selectedProjectName
     ) {
       handleProjectSelect(selectedProjectName);
     }
-  }, [authStatus, projects, selectedProjectName, connectionStatus]);
+  }, [isAuthenticated, selectedProjectName, connectionStatus]);
 
-  // Fetch voices when API key changes
+  /* Fetch voices when API key changes */
   useEffect(() => {
     if (!elevenLabsApiKey) {
       setVoices([]);
@@ -204,9 +175,7 @@ export default function VocalPads() {
       // Update context with selected Machiniste
       setMachiniste(machines.length > 0 ? machines[0].id : null);
       setConnectionStatus('connected');
-      console.debug('[VoxMachina] project connected:', projectName, 'machinistes:', machines.length, 'selected:', machines[0]?.id);
     } catch (err) {
-      console.debug('[VoxMachina] project open error:', err);
       setConnectionStatus('error');
       setConnectionError(err.message || 'Failed to open project');
     }
@@ -230,30 +199,24 @@ export default function VocalPads() {
 
       try {
         const translatedText = translateEmojisToTags(pad.text);
-        console.debug('[VoxMachina] generate pad:', padIndex, 'text:', translatedText);
         const audioBlob = await generateSpeech(elevenLabsApiKey, {
           text: translatedText,
           voiceId: selectedVoiceId,
           language: selectedLanguage,
           outputFormat
         });
-        console.debug('[VoxMachina] TTS done — blob:', audioBlob.size, 'bytes, type:', audioBlob.type);
-
         const audioUrl = URL.createObjectURL(audioBlob);
 
         // Push to Machiniste if connected
         if (clientRef.current && docRef.current && selectedMachinisteId) {
-          console.debug('[VoxMachina] pushing to Machiniste:', selectedMachinisteId, 'channel:', padIndex);
           const sampleMeta = await uploadSample(clientRef.current, audioBlob, pad.text);
           if (sampleMeta) {
             await setChannelSample(docRef.current, selectedMachinisteId, padIndex, sampleMeta);
-            console.debug('[VoxMachina] channel sample set — pad:', padIndex);
           }
         }
 
         updatePad(padIndex, { status: 'loaded', audioUrl });
       } catch (err) {
-        console.debug('[VoxMachina] generate error:', err);
         updatePad(padIndex, { status: 'error', error: err.message });
       }
     },
@@ -263,18 +226,15 @@ export default function VocalPads() {
   const handleRangeChange = useCallback(
     async (padIndex, startRatio, endRatio) => {
       if (!docRef.current || !selectedMachinisteId) return;
-      console.debug('[VoxMachina] range change — pad:', padIndex, 'start:', startRatio, 'end:', endRatio);
       try {
         await setChannelSampleRange(docRef.current, selectedMachinisteId, padIndex, startRatio, endRatio);
-      } catch (err) {
-        console.debug('[VoxMachina] range change error:', err);
-      }
+      } catch (_) {}
     },
     [selectedMachinisteId]
   );
 
   // Determine if PadGrid should be disabled
-  const gridDisabled = !authRef.current || authRef.current.status !== 'authenticated' || !contextMachiniste;
+  const gridDisabled = !authRef.current || authRef.current.status !== 'authenticated' || !selectedMachinisteId;
 
   return (
     <div className="min-h-screen bg-background flex items-start justify-center p-4 md:p-8">
@@ -304,7 +264,7 @@ export default function VocalPads() {
             onElevenLabsApiKeyChange={setElevenLabsApiKey}
             outputFormat={outputFormat}
             onOutputFormatChange={setOutputFormat}
-            authStatus={authStatus}
+            authStatus={isAuthenticated ? 'authenticated' : 'unauthenticated'}
             authError={authError}
             onLogin={handleLogin}
             userName={userName}
@@ -333,7 +293,7 @@ export default function VocalPads() {
             onGenerate={handleGenerate}
             showLocators={connectionStatus === 'connected' && !!selectedMachinisteId}
             onRangeChange={handleRangeChange}
-            disabled={gridDisabled} // new prop to disable grid
+            disabled={gridDisabled}
           />
         </div>
 
